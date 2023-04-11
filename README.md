@@ -1,5 +1,5 @@
 # ServiceUnitTest
-This is a sample project for testing a service layer using NUnit. The project contains unit tests for the `OrderService` class, which handles order-related operations in the system.
+This is a sample project for testing a service layer using NUnit and Autofac.Extras.Moq. The project contains unit tests for the `OrderService` class, which handles order-related operations in the system.
 
 ## Prerequisites
 To run the tests in this project, you will need:
