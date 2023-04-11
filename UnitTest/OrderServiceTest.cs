@@ -7,18 +7,15 @@ using static Api.Helper.Enums;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using System;
+using Autofac.Extras.Moq;
 
 namespace UnitTest
 {
     public class Tests
     {
-        private Mock<IDbService> _dbServiceMock;
-        private IOrderService orderService;
         [SetUp]
         public void Setup()
         {
-            _dbServiceMock = new Mock<IDbService>();
-            orderService = new OrderService(_dbServiceMock.Object);
         }
 
         #region Cancel Order test
@@ -27,15 +24,23 @@ namespace UnitTest
         {
             // Arrange
             string orderCode = "123";
-            _dbServiceMock.Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
-                .Returns((Order)null);
 
-            // Act
-            (var success , var message) = orderService.CancelOrder(orderCode);
+            using (var mock = AutoMock.GetLoose())
+            {
+                // set up the expected value of the FirstOrDefault method in IDbService
+                mock.Mock<IDbService>().Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
+                    .Returns((Order)null);
+                
+                // create a mock instance of IOrderService
+                var orderService = mock.Create<OrderService>();
 
-            // Assert
-            Assert.IsFalse(success);
-            Assert.AreEqual($"Order with order code {orderCode} does not exist", message);
+                // Act
+                (var success , var message) = orderService.CancelOrder(orderCode);
+
+                // Assert
+                Assert.IsFalse(success);
+                Assert.AreEqual($"Order with order code {orderCode} does not exist", message);
+            }
         }
 
         [Test]
@@ -43,16 +48,22 @@ namespace UnitTest
         {
             // Arrange
             string orderCode = "123";
-            var order = new Order { OrderCode = orderCode, Status = OrderStatus.Cancelled };
-            _dbServiceMock.Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
-                .Returns(order);
 
-            // Act
-            (var success, var message) =  orderService.CancelOrder(orderCode);
+            using (var mock = AutoMock.GetLoose())
+            {
+                var order = new Order { OrderCode = orderCode, Status = OrderStatus.Cancelled };
+                mock.Mock<IDbService>().Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
+                    .Returns(order);
 
-            // Assert
-            Assert.IsFalse(success);
-            Assert.AreEqual($"Order with order code {orderCode} is already cancelled", message);
+                var orderService = mock.Create<OrderService>();
+
+                // Act
+                (var success, var message) = orderService.CancelOrder(orderCode);
+
+                // Assert
+                Assert.IsFalse(success);
+                Assert.AreEqual($"Order with order code {orderCode} is already cancelled", message);
+            }
         }
 
         [Test]
@@ -60,16 +71,22 @@ namespace UnitTest
         {
             // Arrange
             string orderCode = "123";
-            var order = new Order { OrderCode = orderCode, Status = OrderStatus.Delivered };
-            _dbServiceMock.Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
-                .Returns(order);
 
-            // Act
-            (var success, var message) = orderService.CancelOrder(orderCode);
+            using (var mock = AutoMock.GetLoose())
+            {
+                var order = new Order { OrderCode = orderCode, Status = OrderStatus.Delivered };
+                mock.Mock<IDbService>().Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
+                    .Returns(order);
 
-            // Assert
-            Assert.IsFalse(success);
-            Assert.AreEqual($"Order with order code {orderCode} is already delivered", message);
+                var orderService = mock.Create<OrderService>();
+
+                // Act
+                (var success, var message) = orderService.CancelOrder(orderCode);
+
+                // Assert
+                Assert.IsFalse(success);
+                Assert.AreEqual($"Order with order code {orderCode} is already delivered", message);
+            }
         }
 
         [Test]
@@ -77,17 +94,23 @@ namespace UnitTest
         {
             // Arrange
             string orderCode = "123";
-            var order = new Order { OrderCode = orderCode, Status = OrderStatus.New };
-            _dbServiceMock.Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
-                .Returns(order);
-            _dbServiceMock.Setup(x => x.Update(It.IsAny<Order>()));
 
-            // Act
-            (var success, var message) = orderService.CancelOrder(orderCode);
+            using (var mock = AutoMock.GetLoose())
+            {
+                var order = new Order { OrderCode = orderCode, Status = OrderStatus.New };
+                mock.Mock<IDbService>().Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
+                    .Returns(order);
 
-            // Assert
-            Assert.IsTrue(success);
-            Assert.AreEqual($"Order with order code {orderCode} has been cancelled", message);
+                var orderService = mock.Create<OrderService>();
+
+                // Act
+                (var success, var message) = orderService.CancelOrder(orderCode);
+
+                // Assert
+                mock.Mock<IDbService>().Verify(x => x.Update(It.IsAny<Order>()),Times.Once);
+                Assert.IsTrue(success);
+                Assert.AreEqual($"Order with order code {orderCode} has been cancelled", message);
+            }
         }
 
         [Test]
@@ -95,17 +118,23 @@ namespace UnitTest
         {
             // Arrange
             string orderCode = "123";
-            var order = new Order { OrderCode = orderCode, Status = OrderStatus.InProgress };
-            _dbServiceMock.Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
-                .Returns(order);
-            _dbServiceMock.Setup(x => x.Update(It.IsAny<Order>())).Throws(new Exception("Failed to cancel order"));
 
-            // Act
-            (var success, var message) = orderService.CancelOrder(orderCode);
+            using (var mock = AutoMock.GetLoose())
+            {
+                var order = new Order { OrderCode = orderCode, Status = OrderStatus.InProgress };
+                mock.Mock<IDbService>().Setup(x => x.FirstOrDefault<Order>(It.IsAny<Expression<Func<Order, bool>>>()))
+                    .Returns(order);
+                mock.Mock<IDbService>().Setup(x => x.Update(It.IsAny<Order>())).Throws(new Exception("Failed to cancel order"));
 
-            // Assert
-            Assert.IsFalse(success);
-            Assert.AreEqual($"Failed to cancel order with order code {orderCode}", message);
+                var orderService = mock.Create<OrderService>();
+
+                // Act
+                (var success, var message) = orderService.CancelOrder(orderCode);
+
+                // Assert
+                Assert.IsFalse(success);
+                Assert.AreEqual($"Failed to cancel order with order code {orderCode}", message);
+            }
         }
     }
     #endregion
